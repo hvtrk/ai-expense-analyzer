@@ -18,4 +18,4 @@ Build a production-grade AI-powered backend system for expense analysis, predict
 - OpenAI / LLM APIs
 
 ## Progress Tracking
-See `progress.md`
+See [progress.md](progress.md)
