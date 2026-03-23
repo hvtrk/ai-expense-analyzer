@@ -1,0 +1,8 @@
+date,category,amount
+2026-03-01,food,200
+2026-03-01,travel,500
+2026-03-02,food,300
+2026-03-02,shopping,1000
+2026-03-03,Food,150
+2026-03-03,travel,invalid
+2026-03-04,,400
