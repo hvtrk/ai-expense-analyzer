@@ -14,47 +14,106 @@
 
 ---
 
-## Day 3
+## Day 3 — Validation System (Production-Grade)
 
-### Planned:
+### Objective
+Build a strict validation layer to eliminate silent data corruption and enforce data integrity before analytics.
 
-- Implement strict validation system
-- Prevent silent data corruption
-- Introduce structured error reporting
+---
 
-### Completed:
+### What Was Built
 
-- Schema validation (required columns, empty file handling)
-- Row-level validation with detailed issue tracking
-- Partial processing (valid + invalid row separation)
-- Clean data pipeline (load → validate → clean → analyze)
-- Custom exception handling (file + schema errors)
-- Structured API response using Pydantic
-- Error summary aggregation for data quality insights
+#### 1. Schema Validation
+- Enforced required columns: `date`, `amount`, `category`
+- Fail-fast approach for:
+  - Missing columns
+  - Empty files
 
-## Hours:
-- 5 Hours 15 Mins
+---
 
-## What Broke:
+#### 2. Row-Level Validation Engine
+- Implemented validation rules:
+  - `amount > 0`
+  - `amount` must be numeric
+  - `category` must be non-empty and non-numeric
+  - `date` must follow strict `YYYY-MM-DD` format
+- Structured error output:
+  ```json
+  {
+    "row": 1,
+    "issues": [
+      { "field": "amount", "issue": "..." }
+    ]
+  }
+  ```
 
-- Initial mixing of validation and service responsibilities
-- Incorrect validation order causing potential runtime failures
-- Weak exception handling design
+---
 
-## Fix:
+#### 3. Partial Processing (Critical Improvement)
+- System now:
+  - Processes valid rows
+  - Separates invalid rows
+  - Avoids silent data drops
 
-- Refactored validation into pure layer
-- Reordered pipeline (schema → clean → row validation)
-- Introduced custom exception system
-- Removed unnecessary abstractions and duplicate checks
+---
 
-## Learning:
+#### 4. Vectorized Validation (Performance Optimization)
+- Replaced `iterrows()` with Pandas mask-based validation
+- Implemented:
+  - amount_invalid
+  - category_invalid
+  - date_invalid
+- Reduced loop scope:
+  - Loop runs only on invalid rows
+- Used `.loc` for correct row + column selection
 
-- Importance of strict data validation before analytics
-- Clear separation of concerns across layers
-- Designing APIs with structured, predictable contracts
-- Avoiding silent failures in data pipelines
+---
 
-## Next:
+#### 5. Data Pipeline Flow (Corrected)
 
-- Day 4: API contract redesign (nested schemas, stronger typing)
+Upload → Load → Schema Validate → Clean → Row Validate → Analyze
+
+---
+
+#### 6. Error Aggregation Layer
+- Added error_summary:
+  ```json
+  {
+    "category": 2,
+    "amount": 1
+  }
+  ```
+
+---
+
+#### 7. Exception System
+- Introduced:
+  - FileValidationError
+  - SchemaValidationError
+
+---
+
+#### 8. API Contract (Initial)
+- Introduced Pydantic response model
+- Structured response with:
+  - totals
+  - category breakdown
+  - invalid rows
+  - error summary
+
+---
+
+### Key Learnings
+
+- Silent data corruption is the biggest risk in data systems
+- Validation must be explicit, structured, and non-destructive
+- Vectorization is critical for performance in Pandas
+- `.loc` is required for correct row + column selection
+- Separation of concerns is non-negotiable
+
+---
+
+### Outcome
+
+- Built a production-grade validation system
+- Eliminated silent failures
