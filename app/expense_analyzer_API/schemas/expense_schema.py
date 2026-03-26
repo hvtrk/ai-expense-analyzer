@@ -1,20 +1,42 @@
+from pydantic import Field
 from pydantic import BaseModel
-from typing import Dict, Optional, List
+from typing import Optional, List
+from datetime import date
 
 class Issue(BaseModel):
     field: str
-    issue: str
+    message: str
 
 class InvalidRow(BaseModel):
-    row: int
+    row_index: int
     issues: List[Issue]
+
+class Category(BaseModel):
+    category: str
+    total: float
+
+class ErrorSummary(BaseModel):
+    field: str
+    count: int
+
+class DateRange(BaseModel):
+    start: Optional[date] = None
+    end: Optional[date] = None
+
+class Filter(BaseModel):
+    filter_type: str = Field(default="") # "last_7_days", "last_30_days", "none"
+
+class Metadata(BaseModel):
+    total_rows: int
+    valid_rows: int
+    invalid_rows: int
+    date_range: DateRange
+    filter: Filter
 
 class ExpenseResponse(BaseModel):
     total: float
-    category_breakdown: Dict[str, float]
-    top_category: Optional[str] = None
-    error_summary: Dict[str, int] = {}
-    invalid_rows: List[InvalidRow] = []
-    valid_row_count: int
-    invalid_row_count: int
-    total_row_count: int
+    category_breakdown: List[Category] = Field(default_factory=list)
+    top_category: Optional[str]
+    error_summary: List[ErrorSummary] = Field(default_factory=list)
+    invalid_rows: List[InvalidRow] = Field(default_factory=list)
+    metadata: Metadata

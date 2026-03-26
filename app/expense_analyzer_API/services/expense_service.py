@@ -74,6 +74,17 @@ async def analyze_expenses(file: UploadFile) -> dict:
     # Get the top category
     top = get_top_category(grouped)
 
+    if valid_df.empty:
+        date_range = {
+            "start": None,
+            "end": None
+        }
+    else:
+        date_range = {
+            "start": valid_df["date"].min(),
+            "end": valid_df["date"].max()
+        }
+
     # Return the results
     return {
         "total": total,
@@ -81,7 +92,16 @@ async def analyze_expenses(file: UploadFile) -> dict:
         "top_category": top,
         "error_summary": summarize_errors(errors),
         "invalid_rows": errors,
-        "valid_row_count": len(valid_df),
-        "invalid_row_count": len(errors),
-        "total_row_count": len(df)
+        "metadata": {
+            "total_rows": len(df),
+            "valid_rows": len(valid_df),
+            "invalid_rows": len(errors),
+            "date_range": {
+                "start": date_range["start"],
+                "end": date_range["end"]
+            },
+            "filter": {
+                "filter_type": "none",
+            }
+        }
     }

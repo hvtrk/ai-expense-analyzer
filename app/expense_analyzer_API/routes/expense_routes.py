@@ -1,3 +1,4 @@
+from utils.expense_mapper import expense_response_mapper
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from schemas.expense_schema import ExpenseResponse
 from services.expense_service import analyze_expenses
@@ -9,7 +10,8 @@ router = APIRouter()
 async def analyze_expenses_api(file: UploadFile = File(..., media_type="text/csv", description="Path to the CSV file")):
     try:
         result = await analyze_expenses(file)
-        return result
+        mapped_result = expense_response_mapper(result)
+        return mapped_result
     except FileValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except SchemaValidationError as e:

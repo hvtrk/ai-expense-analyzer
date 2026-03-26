@@ -41,7 +41,7 @@ def validate_rows(df):
         if amount_invalid.loc[idx]:
             row_errors.append({
                 "field": "amount",
-                "issue": "Amount must be positive value"
+                "message": "Amount must be positive value"
                 if not pd.isna(row["amount_clean"])
                 else "Amount must be a valid number"
             })
@@ -49,20 +49,23 @@ def validate_rows(df):
         if category_invalid.loc[idx]:
             row_errors.append({
                 "field": "category",
-                "issue": "Category cannot be empty or numeric"
+                "message": "Category cannot be empty or numeric"
             })
 
         if date_invalid.loc[idx]:
             row_errors.append({
                 "field": "date",
-                "issue": "Date cannot be empty or invalid"
+                "message": "Date cannot be empty or invalid"
             })
 
         if row_errors:
             errors.append({
-                "row": idx + 1,
+                "row_index": idx + 1,
                 "issues": row_errors
             })
+    df["amount"] = df["amount_clean"]
+    df["category"] = df["category_clean"]
+    df["date"] = df["date_clean"]
 
     valid_df = df.loc[~invalid_mask, REQUIRED_COLUMNS].copy()
     return valid_df, errors
