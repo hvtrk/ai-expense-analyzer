@@ -33,6 +33,13 @@ class Metadata(BaseModel):
     date_range: DateRange
     filter: Filter
 
+class StatsSchema(BaseModel):
+    mean: float
+    median: float
+    variance: float
+    std_dev: float
+    count: int
+
 class ExpenseResponse(BaseModel):
     total: float
     category_breakdown: List[Category] = Field(default_factory=list)
@@ -40,3 +47,4 @@ class ExpenseResponse(BaseModel):
     error_summary: List[ErrorSummary] = Field(default_factory=list)
     invalid_rows: List[InvalidRow] = Field(default_factory=list)
     metadata: Metadata
+    stats: StatsSchema

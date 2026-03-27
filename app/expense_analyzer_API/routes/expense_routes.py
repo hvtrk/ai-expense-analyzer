@@ -2,7 +2,7 @@ from utils.expense_mapper import expense_response_mapper
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from schemas.expense_schema import ExpenseResponse
 from services.expense_service import analyze_expenses
-from utils.exception_handler import FileValidationError, SchemaValidationError
+from utils.exception_handler import FileValidationError, SchemaValidationError, QueryValidationError
 
 router = APIRouter()
 

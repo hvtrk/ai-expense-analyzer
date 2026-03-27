@@ -1,4 +1,4 @@
-from schemas.expense_schema import Category, ExpenseResponse, ErrorSummary, DateRange, Filter, InvalidRow, Issue, Metadata
+from schemas.expense_schema import Category, ExpenseResponse, ErrorSummary, DateRange, Filter, InvalidRow, Issue, Metadata, StatsSchema
 
 def expense_response_mapper(result: dict) -> ExpenseResponse:
     return ExpenseResponse(
@@ -18,5 +18,12 @@ def expense_response_mapper(result: dict) -> ExpenseResponse:
             filter=Filter(
                 filter_type=result["metadata"]["filter"]["filter_type"]
             )
+        ),
+        stats=StatsSchema(
+            mean=result["stats"]["mean"],
+            median=result["stats"]["median"],
+            variance=result["stats"]["variance"],
+            std_dev=result["stats"]["std_dev"],
+            count=result["stats"]["count"]
         )
     )

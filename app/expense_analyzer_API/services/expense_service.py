@@ -2,6 +2,9 @@ from utils.exception_handler import FileValidationError, SchemaValidationError, 
 from services.validation_service import validate_rows, validate_columns
 from fastapi import UploadFile
 import pandas as pd
+import numpy as np
+
+PRECISION = 2
 
 # Load the data from the CSV
 def load_expenses(content):
@@ -39,6 +42,7 @@ def summarize_errors(errors):
             summary[field] = summary.get(field, 0) + 1
     return summary
 
+# Calculate filter window
 def calculate_filter_window(df, filter_type):
     if filter_type == "last_7_days":
         start_date = df["date"].max() - pd.Timedelta(days=7)
@@ -51,12 +55,38 @@ def calculate_filter_window(df, filter_type):
         end_date = df["date"].max()
     return start_date, end_date
 
+# Filter by date
 def filter_by_date(df, filter_type):
     if df.empty:
-        return df, None, None
+        return df
     start_date, end_date = calculate_filter_window(df, filter_type)
     filtered_df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
-    return filtered_df, start_date, end_date
+    return filtered_df
+
+# Safe float
+def safe_float(value):
+    value = float(value)
+    if np.isnan(value) or np.isinf(value):
+        return 0.0
+    return round(float(value), PRECISION)
+
+# Calculate stats
+def calculate_expense_stats(amounts: np.ndarray) -> dict:
+    if amounts.size == 0:
+        return {
+            "mean": 0.0,
+            "median": 0.0,
+            "variance": 0.0,
+            "std_dev": 0.0,
+            "count": 0
+        }
+    return {
+        "mean": safe_float(np.mean(amounts)),
+        "median": safe_float(np.median(amounts)),
+        "variance": safe_float(np.var(amounts)),
+        "std_dev": safe_float(np.std(amounts)),
+        "count": amounts.size
+    }
 
 # Analyze the data
 async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
@@ -87,11 +117,9 @@ async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
     # Check if the dataframe is empty
     if valid_df.empty:
         df_filtered = valid_df
-        start_date = None
-        end_date = None
     else:
         # Filter by date
-        df_filtered, start_date, end_date = filter_by_date(valid_df, filter_type)
+        df_filtered = filter_by_date(valid_df, filter_type)
 
     if df_filtered.empty:
         date_range = {
@@ -103,6 +131,10 @@ async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
             "start": df_filtered["date"].min(),
             "end": df_filtered["date"].max()
         }
+
+    # Calculate stats
+    amounts = df_filtered["amount"].to_numpy()
+    stats = calculate_expense_stats(amounts)
 
     # Calculate the total
     total = calculate_total(df_filtered)
@@ -134,5 +166,6 @@ async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
             "filter": {
                 "filter_type": filter_type,
             }
-        }
+        },
+        "stats": stats
     }
