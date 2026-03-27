@@ -1,3 +1,4 @@
+from fastapi.concurrency import run_in_threadpool
 from utils.exception_handler import FileValidationError, SchemaValidationError, QueryValidationError
 from services.validation_service import validate_rows, validate_columns
 from fastapi import UploadFile
@@ -5,10 +6,14 @@ import pandas as pd
 import numpy as np
 
 PRECISION = 2
+MAX_ERRORS = 100
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 # Load the data from the CSV
 def load_expenses(content):
     try:
+        if len(content) > MAX_FILE_SIZE:
+            raise FileValidationError("File too large")
         return pd.read_csv(pd.io.common.BytesIO(content))
     except Exception as e:
         raise FileValidationError(f"Invalid CSV format: {str(e)}")
@@ -25,7 +30,7 @@ def calculate_total(df):
 
 # Group by category
 def group_by_category(df):
-    return df.groupby('category')['amount'].sum().to_dict()
+    return {k: safe_float(v) for k, v in df.groupby('category')['amount'].sum().items()}
 
 # Get the top category
 def get_top_category(grouped):
@@ -88,18 +93,32 @@ def calculate_expense_stats(amounts: np.ndarray) -> dict:
         "count": amounts.size
     }
 
-# Analyze the data
-async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
+async def analyze_expenses(file: UploadFile, filter_type: str):
+      # Check if the file is a CSV
     if not file.filename.endswith(".csv"):
         raise FileValidationError("Only CSV files allowed")
 
+    # Check if the filter type is valid
     if filter_type not in ["last_7_days", "last_30_days", "none"]:
         raise QueryValidationError("Invalid filter type")
 
+    # Read the file content
     content = await file.read()
 
+    result = await run_in_threadpool(
+        process_expenses, content, filter_type
+    )
+
+    return result
+
+# Analyze the data
+def process_expenses(content: bytes, filter_type: str) -> dict:
     # Load the data from the CSV
     df = load_expenses(content)
+
+    # Check if the dataframe has too many rows
+    if len(df) > 55000:
+        raise FileValidationError("Too many rows")
 
     # Check if the dataframe is empty
     if df.empty:
@@ -150,15 +169,16 @@ async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
 
     # Return the results
     return {
-        "total": total,
+        "total": safe_float(total),
         "category_breakdown": grouped,
         "top_category": top,
         "error_summary": summarize_errors(errors),
-        "invalid_rows": errors,
+        "invalid_rows": errors[:MAX_ERRORS],
         "metadata": {
             "total_rows": len(df),
             "valid_rows": len(valid_df),
             "invalid_rows": len(errors),
+            "invalid_rows_truncated": len(errors) > MAX_ERRORS,
             "date_range": {
                 "start": date_range["start"],
                 "end": date_range["end"]

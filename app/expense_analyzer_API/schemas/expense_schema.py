@@ -30,6 +30,7 @@ class Metadata(BaseModel):
     total_rows: int
     valid_rows: int
     invalid_rows: int
+    invalid_rows_truncated:int
     date_range: DateRange
     filter: Filter
 

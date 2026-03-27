@@ -17,7 +17,7 @@ def validate_rows(df):
     # Normalize
     df["amount_clean"] = pd.to_numeric(df["amount"], errors="coerce")
     df["category_clean"] = df["category"].astype(str).str.strip()
-    df["date_clean"] = pd.to_datetime(df["date"], errors='coerce', format='%Y-%m-%d')
+    df["date_clean"] = pd.to_datetime(df["date"], errors='coerce').dt.date
 
     # Masks
     amount_invalid = (df["amount_clean"].isna()) | (df["amount_clean"] <= 0)

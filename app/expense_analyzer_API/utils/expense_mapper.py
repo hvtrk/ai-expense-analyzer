@@ -11,6 +11,7 @@ def expense_response_mapper(result: dict) -> ExpenseResponse:
             total_rows=result["metadata"]["total_rows"],
             valid_rows=result["metadata"]["valid_rows"],
             invalid_rows=result["metadata"]["invalid_rows"],
+            invalid_rows_truncated=result["metadata"]["invalid_rows_truncated"],
             date_range=DateRange(
                 start=result["metadata"]["date_range"]["start"],
                 end=result["metadata"]["date_range"]["end"]
