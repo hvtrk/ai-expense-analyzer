@@ -4,3 +4,6 @@ class FileValidationError(Exception):
 
 class SchemaValidationError(Exception):
     pass
+
+class QueryValidationError(Exception):
+    pass

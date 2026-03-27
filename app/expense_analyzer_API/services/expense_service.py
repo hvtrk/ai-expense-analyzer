@@ -1,4 +1,4 @@
-from utils.exception_handler import FileValidationError, SchemaValidationError
+from utils.exception_handler import FileValidationError, SchemaValidationError, QueryValidationError
 from services.validation_service import validate_rows, validate_columns
 from fastapi import UploadFile
 import pandas as pd
@@ -18,7 +18,7 @@ def clean_data(df):
 
 # Calculate the total
 def calculate_total(df):
-    return df['amount'].sum()
+    return df['amount'].sum() if not df.empty else 0.0
 
 # Group by category
 def group_by_category(df):
@@ -39,10 +39,32 @@ def summarize_errors(errors):
             summary[field] = summary.get(field, 0) + 1
     return summary
 
+def calculate_filter_window(df, filter_type):
+    if filter_type == "last_7_days":
+        start_date = df["date"].max() - pd.Timedelta(days=7)
+        end_date = df["date"].max()
+    elif filter_type == "last_30_days":
+        start_date = df["date"].max() - pd.Timedelta(days=30)
+        end_date = df["date"].max()
+    else:
+        start_date = df["date"].min()
+        end_date = df["date"].max()
+    return start_date, end_date
+
+def filter_by_date(df, filter_type):
+    if df.empty:
+        return df, None, None
+    start_date, end_date = calculate_filter_window(df, filter_type)
+    filtered_df = df[(df["date"] >= start_date) & (df["date"] <= end_date)]
+    return filtered_df, start_date, end_date
+
 # Analyze the data
-async def analyze_expenses(file: UploadFile) -> dict:
+async def analyze_expenses(file: UploadFile, filter_type: str) -> dict:
     if not file.filename.endswith(".csv"):
         raise FileValidationError("Only CSV files allowed")
+
+    if filter_type not in ["last_7_days", "last_30_days", "none"]:
+        raise QueryValidationError("Invalid filter type")
 
     content = await file.read()
 
@@ -62,28 +84,37 @@ async def analyze_expenses(file: UploadFile) -> dict:
     # Check file and validate the rows
     valid_df, errors = validate_rows(df)
 
-    # Calculate the total
-    total = calculate_total(valid_df)
-
-    # Group by category
-    grouped = group_by_category(valid_df)
-
-    # Sort by category
-    grouped = dict(sorted(grouped.items(), key=lambda x: x[1], reverse=True))
-
-    # Get the top category
-    top = get_top_category(grouped)
-
+    # Check if the dataframe is empty
     if valid_df.empty:
+        df_filtered = valid_df
+        start_date = None
+        end_date = None
+    else:
+        # Filter by date
+        df_filtered, start_date, end_date = filter_by_date(valid_df, filter_type)
+
+    if df_filtered.empty:
         date_range = {
             "start": None,
             "end": None
         }
     else:
         date_range = {
-            "start": valid_df["date"].min(),
-            "end": valid_df["date"].max()
+            "start": df_filtered["date"].min(),
+            "end": df_filtered["date"].max()
         }
+
+    # Calculate the total
+    total = calculate_total(df_filtered)
+
+    # Group by category
+    grouped = group_by_category(df_filtered)
+
+    # Sort by category
+    grouped = dict(sorted(grouped.items(), key=lambda x: x[1], reverse=True))
+
+    # Get the top category
+    top = get_top_category(grouped)
 
     # Return the results
     return {
@@ -101,7 +132,7 @@ async def analyze_expenses(file: UploadFile) -> dict:
                 "end": date_range["end"]
             },
             "filter": {
-                "filter_type": "none",
+                "filter_type": filter_type,
             }
         }
     }
