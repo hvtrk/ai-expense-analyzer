@@ -15,6 +15,10 @@ class Category(BaseModel):
     category: str
     total: float
 
+class DailySpend(BaseModel):
+    date: date
+    total: float
+
 class ErrorSummary(BaseModel):
     field: str
     count: int
@@ -41,11 +45,17 @@ class StatsSchema(BaseModel):
     std_dev: float
     count: int
 
+class ChartResponse(BaseModel):
+    category_chart: str
+    trend_chart: str
+
 class ExpenseResponse(BaseModel):
     total: float
     category_breakdown: List[Category] = Field(default_factory=list)
+    daily_spend_trend: List[DailySpend] = Field(default_factory=list)
     top_category: Optional[str]
     error_summary: List[ErrorSummary] = Field(default_factory=list)
     invalid_rows: List[InvalidRow] = Field(default_factory=list)
+    charts: ChartResponse
     metadata: Metadata
     stats: StatsSchema

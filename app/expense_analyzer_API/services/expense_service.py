@@ -1,6 +1,8 @@
+from time import time
 from fastapi.concurrency import run_in_threadpool
 from utils.exception_handler import FileValidationError, SchemaValidationError, QueryValidationError
 from services.validation_service import validate_rows, validate_columns
+from services.visualization_service import generate_category_chart, generate_trend_chart
 from fastapi import UploadFile
 import pandas as pd
 import numpy as np
@@ -31,6 +33,10 @@ def calculate_total(df):
 # Group by category
 def group_by_category(df):
     return {k: safe_float(v) for k, v in df.groupby('category')['amount'].sum().items()}
+
+# Group by date
+def group_by_date(df):
+    return {k.strftime("%Y-%m-%d"): safe_float(v) for k, v in df.groupby('date')['amount'].sum().items()}
 
 # Get the top category
 def get_top_category(grouped):
@@ -70,10 +76,13 @@ def filter_by_date(df, filter_type):
 
 # Safe float
 def safe_float(value):
-    value = float(value)
-    if np.isnan(value) or np.isinf(value):
+    try:
+        value = float(value)
+        if np.isnan(value) or np.isinf(value):
+            return 0.0
+        return round(float(value), PRECISION)
+    except (ValueError, TypeError):
         return 0.0
-    return round(float(value), PRECISION)
 
 # Calculate stats
 def calculate_expense_stats(amounts: np.ndarray) -> dict:
@@ -93,7 +102,7 @@ def calculate_expense_stats(amounts: np.ndarray) -> dict:
         "count": amounts.size
     }
 
-async def analyze_expenses(file: UploadFile, filter_type: str):
+async def analyze_expenses(file: UploadFile, filter_type: str, include_charts: bool):
       # Check if the file is a CSV
     if not file.filename.endswith(".csv"):
         raise FileValidationError("Only CSV files allowed")
@@ -106,13 +115,13 @@ async def analyze_expenses(file: UploadFile, filter_type: str):
     content = await file.read()
 
     result = await run_in_threadpool(
-        process_expenses, content, filter_type
+        process_expenses, content, filter_type, include_charts
     )
 
     return result
 
 # Analyze the data
-def process_expenses(content: bytes, filter_type: str) -> dict:
+def process_expenses(content: bytes, filter_type: str, include_charts: bool) -> dict:
     # Load the data from the CSV
     df = load_expenses(content)
 
@@ -159,21 +168,43 @@ def process_expenses(content: bytes, filter_type: str) -> dict:
     total = calculate_total(df_filtered)
 
     # Group by category
-    grouped = group_by_category(df_filtered)
+    grouped_category = group_by_category(df_filtered)
 
     # Sort by category
-    grouped = dict(sorted(grouped.items(), key=lambda x: x[1], reverse=True))
+    grouped_category = dict(sorted(grouped_category.items(), key=lambda x: x[1], reverse=True))
+
+    # Group by date
+    grouped_date = group_by_date(df_filtered)
+
+    # Sort by date
+    grouped_date = dict(sorted(grouped_date.items(), key=lambda x: x[0]))
+
+    category_chart= ""
+    trend_chart = ""
+    if include_charts:
+        start = time()
+         # Generate charts
+        category_chart = generate_category_chart(grouped_category)
+        trend_chart = generate_trend_chart(grouped_date)
+        print("chart time:", time() - start)
+        print(len(category_chart))
+        print(len(trend_chart))
 
     # Get the top category
-    top = get_top_category(grouped)
+    top = get_top_category(grouped_category)
 
     # Return the results
     return {
         "total": safe_float(total),
-        "category_breakdown": grouped,
+        "category_breakdown": grouped_category,
+        "daily_spend_trend": grouped_date,
         "top_category": top,
         "error_summary": summarize_errors(errors),
         "invalid_rows": errors[:MAX_ERRORS],
+        "charts": {
+            "category_chart": category_chart,
+            "trend_chart": trend_chart
+        },
         "metadata": {
             "total_rows": len(df),
             "valid_rows": len(valid_df),

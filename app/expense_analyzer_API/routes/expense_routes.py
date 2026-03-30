@@ -7,9 +7,9 @@ from utils.exception_handler import FileValidationError, SchemaValidationError, 
 router = APIRouter()
 
 @router.post("/analyze-expenses", response_model=ExpenseResponse)
-async def analyze_expenses_api(file: UploadFile = File(..., media_type="text/csv", description="Path to the CSV file"), filter: str = 'none'):
+async def analyze_expenses_api(file: UploadFile = File(..., media_type="text/csv", description="Path to the CSV file"), filter: str = 'none', include_charts: bool = True):
     try:
-        result = await analyze_expenses(file, filter_type = filter)
+        result = await analyze_expenses(file, filter_type = filter, include_charts=include_charts)
         mapped_result = expense_response_mapper(result)
         return mapped_result
     except FileValidationError as e:
