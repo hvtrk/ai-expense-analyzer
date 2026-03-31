@@ -7,3 +7,6 @@ class SchemaValidationError(Exception):
 
 class QueryValidationError(Exception):
     pass
+
+class VisualizationError(Exception):
+    pass
