@@ -1,8 +1,9 @@
 # Total spend
-class TotalSpendResult:
-    def __init__(self, total):
-        self.total = total
+from decimal import Decimal
 
+class TotalSpendResult:
+    def __init__(self, total:Decimal):
+        self.total = total
 
 # Date range
 class DateRange:
@@ -17,7 +18,7 @@ class Filter:
 
 # Category stat
 class CategoryStat:
-    def __init__(self, category, total):
+    def __init__(self, category:str, total:Decimal):
         self.category = category
         self.total = total
 
