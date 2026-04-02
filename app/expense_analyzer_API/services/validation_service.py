@@ -80,6 +80,7 @@ def validate_rows(df: pd.DataFrame) -> tuple[CleanedExpenseData, list[InvalidRow
     df["date"] = df["date_clean"]
 
     valid_df = df.loc[~invalid_mask, REQUIRED_COLUMNS].copy()
+    valid_df.drop_duplicates(subset=REQUIRED_COLUMNS, inplace=True, keep='first')
     return CleanedExpenseData(valid_df), invalid_rows
 
 

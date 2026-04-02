@@ -1,3 +1,4 @@
+from utils.logger import logger
 import uuid
 from fastapi import UploadFile
 from services import ingestion_service, validation_service, stats_service
@@ -6,6 +7,7 @@ from db import repository
 from models.internal.validation.validation import ValidationResult
 from models.internal.stats.stats import StatsResult
 from models.internal.metadata.metadata import Metadata
+from models.internal.expense.expense import CleanedExpenseData
 
 def build_metadata(validation_result: ValidationResult, stats_result: StatsResult, filter_type: str) -> Metadata:
     """Build response metadata from typed validation and stats results."""
@@ -21,6 +23,9 @@ def generate_batch_id() -> str:
 
 
 async def run_pipeline(file: UploadFile, filter_type: str = 'none'):
+    if filter_type not in ("last_7_days", "last_30_days", "none"):
+        raise ValueError("Invalid filter type")
+
     df = await ingestion_service.load(file)
 
     validation_result = validation_service.validate(df)
@@ -30,16 +35,21 @@ async def run_pipeline(file: UploadFile, filter_type: str = 'none'):
         batch_id = generate_batch_id()
         repository.save_expenses(
             db,
-            validation_result.cleaned_data.records,
+            validation_result.cleaned_data.to_records(),
             batch_id
         )
+        fetched_expenses = repository.fetch_expenses(db, filter_type)
+        stats_result = stats_service.compute_stats(
+            CleanedExpenseData.from_records(fetched_expenses),
+            filter_type,
+        )
+    except Exception as e:
+        logger.error(f"Error in pipeline: {e}")
+        db.rollback()
+        db.close()
+        raise
     finally:
         db.close()
-
-    stats_result = stats_service.compute_stats(
-        validation_result.cleaned_data,
-        filter_type,
-    )
 
     metadata = build_metadata(validation_result, stats_result, filter_type)
 

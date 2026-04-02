@@ -1,11 +1,6 @@
-import logging
 import numpy as np
 
 PRECISION = 2
-
-# Module-level logger — importable as `from utils.math_utils import logger`
-logger = logging.getLogger(__name__)
-
 
 # Safe float
 def safe_float(value):
